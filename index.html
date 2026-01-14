@@ -2,37 +2,64 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>戦術対抗戦S10　配置確認 1.3.0</title>
+<title>戦術対抗戦S10　配置確認 1.4.0</title>
 <style>
-  body { text-align:center; font-family:sans-serif; }
-  canvas { border:1px solid #333; touch-action:none; background-size:cover; }
-  button { margin:5px; padding:8px 16px; }
-  #counter { margin-top:10px; font-size:18px; }
+  body { text-align:center; font-family:sans-serif; margin:0; padding:0; }
+
+  canvas {
+    border:1px solid #333;
+    touch-action:none;
+    background-size:cover;
+  }
+
+  button {
+    margin:5px;
+    padding:12px 20px;
+    font-size:16px;
+  }
+
+  #counter {
+    margin-top:10px;
+    font-size:18px;
+  }
+
   .max { color:red; font-weight:bold; }
 
   .container {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 20px;
-    margin-top: 10px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    gap:20px;
+    margin-top:10px;
   }
 
   .description {
-    width: 260px;
-    text-align: left;
-    font-size: 16px;
-    line-height: 1.5;
+    width:260px;
+    text-align:left;
+    font-size:16px;
+    line-height:1.5;
+  }
+
+  /* スマホでは縦並びにする */
+  @media (max-width: 900px) {
+    .container {
+      flex-direction:column;
+      align-items:center;
+    }
+    .description {
+      width:90%;
+    }
   }
 </style>
 </head>
 <body>
 
-<h2>戦術対抗戦S10　配置確認 1.3.0</h2>
+<h2>戦術対抗戦S10　配置確認 1.4.0</h2>
 
 <button id="toggleColor">現在：赤 → 青に切替</button>
 <button id="toggleLine">線の表示 ON/OFF</button>
 <button id="reset">リセット</button>
+<button id="saveImage">画像保存</button>
 
 <br>
 
@@ -45,19 +72,17 @@
 
 <div class="container">
 
-  <canvas id="board" width="800" height="400"></canvas>
+  <canvas id="board"></canvas>
 
   <div class="description">
-    <p>※PCでの操作を強く推奨※</p>
-    <p>左クリックでプロット、右クリックで削除できます。</p>
-    <p>ドラッグすると置いた点を動かせます。</p>
-    <p>①②ではバツ印が部隊中央、丸で囲まれた点がターゲットを表します。</p>
-    <p>③ではバッファーをダブルクリックで決めてください。</p>
+    <p>左クリック（タップ）でプロット、右クリック（長押し）で削除できます。</p>
+    <p>ドラッグ（スワイプ）すると置いた点を動かせます。</p>
+    <p>バツ印が部隊中央、丸で囲まれた点がターゲットを表します。</p>
     <p>モード切替：</p>
     <ul>
       <li>①SP攻撃：重心→異色の最短点</li>
       <li>②SPバフ：重心→同色の最短点</li>
-      <li>③STバフ：ダブルクリックした点→同色の最短点</li>
+      <li>③STバフ：ダブルタップした点→同色の最短点</li>
     </ul>
   </div>
 
@@ -79,175 +104,177 @@ let bluePoints = [];
 let dragging = false;
 let dragTarget = null;
 
-let modeType = 1; // 1=SP攻撃, 2=SPバフ, 3=STバフ
+let modeType = 1;
 let selectedPoint = null;
 
-// 色切替
-document.getElementById("toggleColor").onclick = () => {
-  mode = (mode === "red") ? "blue" : "red";
-  document.getElementById("toggleColor").textContent =
-    `現在：${mode === "red" ? "赤" : "青"} → ${mode === "red" ? "青" : "赤"}に切替`;
-};
+let lastTapTime = 0;
+let longPressTimer = null;
 
-// 線の表示
-document.getElementById("toggleLine").onclick = () => {
-  showLines = !showLines;
+// ===== Canvas 自動リサイズ =====
+function resizeCanvas() {
+  const w = Math.min(window.innerWidth * 0.9, 800);
+  canvas.width = w;
+  canvas.height = w / 2;
   draw();
-};
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
 
-// モード切替（1→2→3→1…）
-document.getElementById("modeToggle").onclick = () => {
-  modeType = (modeType % 3) + 1;
-  selectedPoint = null;
-
-  const btn = document.getElementById("modeToggle");
-  if (modeType === 1) btn.textContent = "①SP攻撃の対象";
-  if (modeType === 2) btn.textContent = "②SPバフの対象";
-  if (modeType === 3) btn.textContent = "③STバフの対象";
-
-  draw();
-};
-
-// リセット
-document.getElementById("reset").onclick = () => {
-  redPoints = [];
-  bluePoints = [];
-  selectedPoint = null;
-  updateCounter();
-  draw();
-};
-
-// 点追加 or ドラッグ開始
+// ===== PC操作 =====
 canvas.addEventListener("mousedown", (e) => {
-  const {x, y} = getMousePos(e);
+  const {x, y} = getPos(e);
 
-  dragTarget = findPointAt(x, y);
+  dragTarget = findPoint(x, y);
   if (dragTarget) {
     dragging = true;
     return;
   }
 
-  if (mode === "red" && redPoints.length < 4) redPoints.push({x,y});
-  if (mode === "blue" && bluePoints.length < 4) bluePoints.push({x,y});
-
-  updateCounter();
-  draw();
+  addPoint(x, y);
 });
 
-// ドラッグ中
 canvas.addEventListener("mousemove", (e) => {
   if (!dragging || !dragTarget) return;
-  const {x, y} = getMousePos(e);
+  const {x, y} = getPos(e);
   dragTarget.x = x;
   dragTarget.y = y;
   draw();
 });
 
-// ドロップ
 canvas.addEventListener("mouseup", () => {
   dragging = false;
   dragTarget = null;
 });
 
-// ダブルクリックで基準点設定（STバフ）
 canvas.addEventListener("dblclick", (e) => {
-  const {x, y} = getMousePos(e);
-
-  for (const p of redPoints) {
-    if (Math.hypot(p.x - x, p.y - y) < 10) {
-      selectedPoint = { ...p, color: "red" };
-      draw();
-      return;
-    }
-  }
-  for (const p of bluePoints) {
-    if (Math.hypot(p.x - x, p.y - y) < 10) {
-      selectedPoint = { ...p, color: "blue" };
-      draw();
-      return;
-    }
-  }
+  const {x, y} = getPos(e);
+  setSelectedPoint(x, y);
 });
 
 // 右クリック削除
 canvas.addEventListener("contextmenu", (e) => {
   e.preventDefault();
-  const {x, y} = getMousePos(e);
+  const {x, y} = getPos(e);
+  deletePoint(x, y);
+});
 
-  const removePoint = (arr) => {
-    const idx = arr.findIndex(p => Math.hypot(p.x - x, p.y - y) < 10);
-    if (idx >= 0) arr.splice(idx, 1);
-  };
+// ===== スマホ操作 =====
+canvas.addEventListener("touchstart", (e) => {
+  const {x, y} = getPos(e.touches[0]);
 
-  removePoint(redPoints);
-  removePoint(bluePoints);
+  // ダブルタップ判定
+  const now = Date.now();
+  if (now - lastTapTime < 300) {
+    setSelectedPoint(x, y);
+    lastTapTime = 0;
+    return;
+  }
+  lastTapTime = now;
 
-  updateCounter();
+  dragTarget = findPoint(x, y);
+  if (dragTarget) {
+    dragging = true;
+  } else {
+    longPressTimer = setTimeout(() => deletePoint(x, y), 500);
+  }
+});
+
+canvas.addEventListener("touchmove", (e) => {
+  if (!dragging || !dragTarget) return;
+  const {x, y} = getPos(e.touches[0]);
+  dragTarget.x = x;
+  dragTarget.y = y;
   draw();
 });
 
-// 座標取得
-function getMousePos(e) {
+canvas.addEventListener("touchend", (e) => {
+  clearTimeout(longPressTimer);
+  if (!dragging) {
+    const {x, y} = getPos(e.changedTouches[0]);
+    addPoint(x, y);
+  }
+  dragging = false;
+  dragTarget = null;
+});
+
+// ===== 共通処理 =====
+function getPos(e) {
   const rect = canvas.getBoundingClientRect();
   return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
 
-// 点を掴む
-function findPointAt(x, y) {
-  for (const p of redPoints) if (Math.hypot(p.x - x, p.y - y) < 10) return p;
-  for (const p of bluePoints) if (Math.hypot(p.x - x, p.y - y) < 10) return p;
+function findPoint(x, y) {
+  for (const p of redPoints) if (dist(p, {x,y}) < 12) return p;
+  for (const p of bluePoints) if (dist(p, {x,y}) < 12) return p;
   return null;
 }
 
-// 重心
-function centroid(points) {
-  if (points.length === 0) return null;
-  const x = points.reduce((s,p)=>s+p.x,0) / points.length;
-  const y = points.reduce((s,p)=>s+p.y,0) / points.length;
-  return {x,y};
+function addPoint(x, y) {
+  if (mode === "red" && redPoints.length < 4) redPoints.push({x,y});
+  if (mode === "blue" && bluePoints.length < 4) bluePoints.push({x,y});
+  updateCounter();
+  draw();
 }
 
-// 最も近い点（自分自身を除外可能）
+function deletePoint(x, y) {
+  redPoints = redPoints.filter(p => dist(p, {x,y}) >= 12);
+  bluePoints = bluePoints.filter(p => dist(p, {x,y}) >= 12);
+  updateCounter();
+  draw();
+}
+
+function setSelectedPoint(x, y) {
+  for (const p of redPoints) if (dist(p, {x,y}) < 12) { selectedPoint = {...p, color:"red"}; draw(); return; }
+  for (const p of bluePoints) if (dist(p, {x,y}) < 12) { selectedPoint = {...p, color:"blue"}; draw(); return; }
+}
+
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+function centroid(list) {
+  if (list.length === 0) return null;
+  return {
+    x: list.reduce((s,p)=>s+p.x,0) / list.length,
+    y: list.reduce((s,p)=>s+p.y,0) / list.length
+  };
+}
+
 function nearest(from, list, excludeSelf=false) {
   let best = null, bestDist = Infinity;
   for (const p of list) {
     if (excludeSelf && p.x === from.x && p.y === from.y) continue;
-    const d = Math.hypot(p.x - from.x, p.y - from.y);
+    const d = dist(from, p);
     if (d < bestDist) { bestDist = d; best = p; }
   }
   return best;
 }
 
-// カウンター
 function updateCounter() {
   redCount.textContent = redPoints.length;
   blueCount.textContent = bluePoints.length;
-  redCount.className = (redPoints.length === 4) ? "max" : "";
-  blueCount.className = (bluePoints.length === 4) ? "max" : "";
+  redCount.className = redPoints.length === 4 ? "max" : "";
+  blueCount.className = bluePoints.length === 4 ? "max" : "";
 }
 
-// バッテン
 function drawCross(x, y, size, color) {
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(x - size, y - size);
-  ctx.lineTo(x + size, y + size);
-  ctx.moveTo(x + size, y - size);
-  ctx.lineTo(x - size, y + size);
+  ctx.moveTo(x-size, y-size);
+  ctx.lineTo(x+size, y+size);
+  ctx.moveTo(x+size, y-size);
+  ctx.lineTo(x-size, y+size);
   ctx.stroke();
 }
 
-// 円
 function drawCircle(x, y, color) {
   ctx.strokeStyle = color;
   ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.arc(x, y, 14, 0, Math.PI*2);
+  ctx.arc(x, y, 16, 0, Math.PI*2);
   ctx.stroke();
 }
 
-// 描画
+// ===== 描画 =====
 function draw() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
@@ -255,23 +282,23 @@ function draw() {
   for (const p of redPoints) {
     ctx.fillStyle = "red";
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 8, 0, Math.PI*2);
+    ctx.arc(p.x, p.y, 10, 0, Math.PI*2);
     ctx.fill();
   }
   for (const p of bluePoints) {
     ctx.fillStyle = "blue";
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 8, 0, Math.PI*2);
+    ctx.arc(p.x, p.y, 10, 0, Math.PI*2);
     ctx.fill();
   }
 
   const cRed = centroid(redPoints);
   const cBlue = centroid(bluePoints);
 
-  if (cRed) drawCross(cRed.x, cRed.y, 8, "pink");
-  if (cBlue) drawCross(cBlue.x, cBlue.y, 8, "lightblue");
+  if (cRed) drawCross(cRed.x, cRed.y, 10, "pink");
+  if (cBlue) drawCross(cBlue.x, cBlue.y, 10, "lightblue");
 
-  // === モード別ターゲット表示 ===
+  // ===== モード別ターゲット表示 =====
 
   // ① SP攻撃（重心→異色）
   if (modeType === 1) {
@@ -299,7 +326,7 @@ function draw() {
 
   // ③ STバフ（基準点→同色、自分自身を除外）
   if (modeType === 3 && selectedPoint) {
-    drawCross(selectedPoint.x, selectedPoint.y, 10, "yellow");
+    drawCross(selectedPoint.x, selectedPoint.y, 12, "yellow");
 
     if (selectedPoint.color === "red") {
       const t = nearest(selectedPoint, redPoints, true);
@@ -337,9 +364,47 @@ function draw() {
   }
 }
 
+// ===== ボタン処理 =====
+document.getElementById("modeToggle").onclick = () => {
+  modeType = (modeType % 3) + 1;
+  selectedPoint = null;
+
+  const btn = document.getElementById("modeToggle");
+  if (modeType === 1) btn.textContent = "①SP攻撃の対象";
+  if (modeType === 2) btn.textContent = "②SPバフの対象";
+  if (modeType === 3) btn.textContent = "③STバフの対象";
+
+  draw();
+};
+
+document.getElementById("toggleColor").onclick = () => {
+  mode = (mode === "red") ? "blue" : "red";
+  document.getElementById("toggleColor").textContent =
+    `現在：${mode === "red" ? "赤" : "青"} → ${mode === "red" ? "青" : "赤"}に切替`;
+};
+
+document.getElementById("toggleLine").onclick = () => {
+  showLines = !showLines;
+  draw();
+};
+
+document.getElementById("reset").onclick = () => {
+  redPoints = [];
+  bluePoints = [];
+  selectedPoint = null;
+  updateCounter();
+  draw();
+};
+
+// ===== 画像保存 =====
+document.getElementById("saveImage").onclick = () => {
+  const link = document.createElement("a");
+  link.download = "tactics.png";
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+};
+
 bg.onload = () => draw();
-updateCounter();
-draw();
 </script>
 
 </body>
