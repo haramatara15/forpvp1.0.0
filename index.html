@@ -2,45 +2,68 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>点プロットミニゲーム</title>
+<title>点プロットミニゲーム 1.1.0</title>
 <style>
   body { text-align:center; font-family:sans-serif; }
-  canvas { border:1px solid #333; touch-action:none; }
+  canvas { border:1px solid #333; touch-action:none; background-size:cover; }
   button { margin:5px; padding:8px 16px; }
+  #counter { margin-top:10px; font-size:18px; }
+  .max { color:red; font-weight:bold; }
 </style>
 </head>
 <body>
 
-<h2>点プロットミニゲーム</h2>
+<h2>点プロットミニゲーム 1.1.0</h2>
 
-<button id="colorRed">赤を追加</button>
-<button id="colorBlue">青を追加</button>
+<button id="toggleColor">現在：赤 → 青に切替</button>
+<button id="toggleLine">線の表示 ON/OFF</button>
 <button id="reset">リセット</button>
 
-<br><br>
+<div id="counter">
+  赤: <span id="redCount">0</span> / 4　
+  青: <span id="blueCount">0</span> / 4
+</div>
 
-<canvas id="board" width="500" height="500"></canvas>
+<br>
+
+<canvas id="board" width="600" height="300"></canvas>
 
 <script>
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
 
-let mode = "red"; // 現在の色
+// 背景画像
+const bg = new Image();
+bg.src = "background.jpg"; 
+
+let mode = "red"; 
+let showLines = true;
+
 let redPoints = [];
 let bluePoints = [];
 
-// 色切り替え
-document.getElementById("colorRed").onclick = () => mode = "red";
-document.getElementById("colorBlue").onclick = () => mode = "blue";
+// 色切り替え（トグル）
+document.getElementById("toggleColor").onclick = () => {
+  mode = (mode === "red") ? "blue" : "red";
+  document.getElementById("toggleColor").textContent =
+    `現在：${mode === "red" ? "赤" : "青"} → ${mode === "red" ? "青" : "赤"}に切替`;
+};
+
+// 線の表示 ON/OFF
+document.getElementById("toggleLine").onclick = () => {
+  showLines = !showLines;
+  draw();
+};
 
 // リセット
 document.getElementById("reset").onclick = () => {
   redPoints = [];
   bluePoints = [];
+  updateCounter();
   draw();
 };
 
-// Canvas クリックで点追加
+// 点追加（左クリック）
 canvas.addEventListener("click", (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -49,6 +72,7 @@ canvas.addEventListener("click", (e) => {
   if (mode === "red" && redPoints.length < 4) redPoints.push({x,y});
   if (mode === "blue" && bluePoints.length < 4) bluePoints.push({x,y});
 
+  updateCounter();
   draw();
 });
 
@@ -67,6 +91,7 @@ canvas.addEventListener("contextmenu", (e) => {
   removePoint(redPoints);
   removePoint(bluePoints);
 
+  updateCounter();
   draw();
 });
 
@@ -78,7 +103,7 @@ function centroid(points) {
   return {x,y};
 }
 
-// 最も近い点を探す
+// 最も近い点
 function nearest(from, toList) {
   if (!from || toList.length === 0) return null;
   let best = null;
@@ -93,9 +118,24 @@ function nearest(from, toList) {
   return best;
 }
 
+// カウンター更新
+function updateCounter() {
+  const r = document.getElementById("redCount");
+  const b = document.getElementById("blueCount");
+
+  r.textContent = redPoints.length;
+  b.textContent = bluePoints.length;
+
+  r.className = (redPoints.length === 4) ? "max" : "";
+  b.className = (bluePoints.length === 4) ? "max" : "";
+}
+
 // 描画
 function draw() {
-  ctx.clearRect(0,0,500,500);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // 背景画像
+  ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
 
   // 点描画
   for (const p of redPoints) {
@@ -111,10 +151,10 @@ function draw() {
     ctx.fill();
   }
 
-  // 重心
   const cRed = centroid(redPoints);
   const cBlue = centroid(bluePoints);
 
+  // 重心描画
   if (cRed) {
     ctx.fillStyle = "pink";
     ctx.beginPath();
@@ -128,34 +168,36 @@ function draw() {
     ctx.fill();
   }
 
-  // 赤重心 → 最も近い青
-  if (cRed) {
-    const nearBlue = nearest(cRed, bluePoints);
-    if (nearBlue) {
-      ctx.strokeStyle = "purple";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cRed.x, cRed.y);
-      ctx.lineTo(nearBlue.x, nearBlue.y);
-      ctx.stroke();
+  // 線の表示 ON のときだけ描画
+  if (showLines) {
+    if (cRed) {
+      const nearBlue = nearest(cRed, bluePoints);
+      if (nearBlue) {
+        ctx.strokeStyle = "purple";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cRed.x, cRed.y);
+        ctx.lineTo(nearBlue.x, nearBlue.y);
+        ctx.stroke();
+      }
     }
-  }
 
-  // 青重心 → 最も近い赤
-  if (cBlue) {
-    const nearRed = nearest(cBlue, redPoints);
-    if (nearRed) {
-      ctx.strokeStyle = "green";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cBlue.x, cBlue.y);
-      ctx.lineTo(nearRed.x, nearRed.y);
-      ctx.stroke();
+    if (cBlue) {
+      const nearRed = nearest(cBlue, redPoints);
+      if (nearRed) {
+        ctx.strokeStyle = "green";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cBlue.x, cBlue.y);
+        ctx.lineTo(nearRed.x, nearRed.y);
+        ctx.stroke();
+      }
     }
   }
 }
 
-draw();
+bg.onload = draw;
+updateCounter();
 </script>
 
 </body>
