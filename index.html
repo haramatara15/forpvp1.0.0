@@ -241,28 +241,28 @@ function draw() {
   if (cRed) drawCross(cRed.x, cRed.y, 8, "pink");
   if (cBlue) drawCross(cBlue.x, cBlue.y, 8, "lightblue");
 
-  // 最も近い点を円で強調
-  if (cRed) {
-    const nearBlue = nearest(cRed, bluePoints);
-    if (nearBlue) {
-      ctx.strokeStyle = "rgba(100,150,255,0.5)";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(nearBlue.x, nearBlue.y, 14, 0, Math.PI*2);
-      ctx.stroke();
-    }
+ // 最も近い点を円で強調（色を逆にした）
+if (cRed) {
+  const nearBlue = nearest(cRed, bluePoints);
+  if (nearBlue) {
+    ctx.strokeStyle = "rgba(255,150,150,0.5)"; // ← ピンクに変更
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(nearBlue.x, nearBlue.y, 14, 0, Math.PI*2);
+    ctx.stroke();
   }
+}
 
-  if (cBlue) {
-    const nearRed = nearest(cBlue, redPoints);
-    if (nearRed) {
-      ctx.strokeStyle = "rgba(255,150,150,0.5)";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(nearRed.x, nearRed.y, 14, 0, Math.PI*2);
-      ctx.stroke();
-    }
+if (cBlue) {
+  const nearRed = nearest(cBlue, redPoints);
+  if (nearRed) {
+    ctx.strokeStyle = "rgba(100,150,255,0.5)"; // ← 水色に変更
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(nearRed.x, nearRed.y, 14, 0, Math.PI*2);
+    ctx.stroke();
   }
+}
 
   // 線の表示
   if (showLines) {
@@ -300,3 +300,4 @@ draw();
 
 </body>
 </html>
+
