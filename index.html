@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>戦術対抗戦S10　配置確認 1.5.0</title>
+<title>戦術対抗戦S10　配置確認 1.6.0</title>
 <style>
   body { text-align:center; font-family:sans-serif; margin:0; padding:0; }
 
@@ -25,31 +25,6 @@
 
   .max { color:red; font-weight:bold; }
 
-  .container {
-    display:flex;
-    justify-content:center;
-    align-items:flex-start;
-    gap:20px;
-    margin-top:10px;
-  }
-
-  .description {
-    width:260px;
-    text-align:left;
-    font-size:16px;
-    line-height:1.5;
-  }
-
-  @media (max-width: 900px) {
-    .container {
-      flex-direction:column;
-      align-items:center;
-    }
-    .description {
-      width:90%;
-    }
-  }
-
   #coordPanel {
     margin-top:20px;
     text-align:left;
@@ -64,11 +39,28 @@
     width:70px;
     margin:3px;
   }
+
+  .description {
+    width:90%;
+    max-width:900px;
+    margin:30px auto;
+    text-align:left;
+    line-height:1.6;
+  }
+
+  @media (max-width: 900px) {
+    #coordPanel {
+      width:90%;
+    }
+    .description {
+      width:90% !important;
+    }
+  }
 </style>
 </head>
 <body>
 
-<h2>戦術対抗戦S10　配置確認 1.5.0</h2>
+<h2>戦術対抗戦S10　配置確認 1.6.0</h2>
 
 <button id="toggleColor">現在：赤 → 青に切替</button>
 <button id="toggleLine">線の表示 ON/OFF</button>
@@ -84,29 +76,44 @@
   青: <span id="blueCount">0</span> / 4
 </div>
 
-<div class="container">
-
+<!-- キャンバス（最上段） -->
+<div style="margin-top:20px;">
   <canvas id="board"></canvas>
-
-  <div class="description">
-    <p>左クリック（タップ）でプロット、右クリック（長押し）で削除できます。</p>
-    <p>ドラッグ（スワイプ）すると置いた点を動かせます。</p>
-    <p>バツ印が部隊中央、丸で囲まれた点がターゲットを表します。</p>
-    <p>モード切替：</p>
-    <ul>
-      <li>①SP攻撃：重心→異色の最短点</li>
-      <li>②SPバフ：重心→同色の最短点</li>
-      <li>③STバフ：ダブルタップした点→同色の最短点</li>
-    </ul>
-  </div>
-
 </div>
 
-<!-- 座標表示・編集パネル -->
+<!-- 座標入力パネル（中央） -->
 <div id="coordPanel">
   <h3>座標一覧 / 編集</h3>
   <div id="coordList"></div>
   <button id="applyCoords">座標を反映</button>
+</div>
+
+<!-- 説明テキスト（最下段） -->
+<div class="description">
+  <h3>ツールの使い方</h3>
+
+  <p>このツールは、戦術対抗戦の部隊配置を視覚的に確認するためのものです。</p>
+
+  <p><strong>● 点の操作</strong></p>
+  <ul>
+    <li>左クリック / タップ：点を追加</li>
+    <li>右クリック / 長押し：点を削除</li>
+    <li>ドラッグ / スワイプ：点を移動</li>
+    <li>ダブルクリック / ダブルタップ：STバフの基準点を選択</li>
+  </ul>
+
+  <p><strong>● モード説明</strong></p>
+  <ul>
+    <li>① SP攻撃：重心 → 異色の最短点</li>
+    <li>② SPバフ：重心 → 同色の最短点</li>
+    <li>③ STバフ：選択点 → 同色の最短点（自分を除外）</li>
+  </ul>
+
+  <p><strong>● 座標入力について</strong></p>
+  <p>座標欄では、各点の座標を直接編集できます。未配置の点は空欄です。</p>
+
+  <p><strong>● 保存機能（今後追加予定）</strong></p>
+  <p>座標データを保存・読み込みできる機能を追加予定です。</p>
 </div>
 
 <script>
