@@ -2,23 +2,18 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>戦術対抗戦S10　配置確認 1.6.1</title>
+<title>戦術対抗戦S10　配置確認 1.7.1</title>
 <style>
-.mainArea {
-  display:flex;
-  justify-content:center;
-  align-items:flex-start;
-  gap:20px;
-  margin-top:20px;
-}
-
-@media (max-width: 900px) {
-  .mainArea {
-    flex-direction:column;
-    align-items:center;
-  }
-}
   body { text-align:center; font-family:sans-serif; margin:0; padding:0; }
+
+  /* PCではキャンバスと座標欄を横並び */
+  .mainArea {
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    gap:20px;
+    margin-top:20px;
+  }
 
   canvas {
     border:1px solid #333;
@@ -40,13 +35,12 @@
   .max { color:red; font-weight:bold; }
 
   #coordPanel {
-    margin-top:20px;
     text-align:left;
-    display:inline-block;
     padding:10px;
     border:1px solid #aaa;
     border-radius:8px;
     background:#fafafa;
+    width:260px;
   }
 
   #coordPanel input {
@@ -57,24 +51,26 @@
   .description {
     width:90%;
     max-width:900px;
-    margin:30px auto 0 auto;
+    margin:30px auto;
     text-align:left;
     line-height:1.6;
   }
 
+  /* スマホでは縦並び */
   @media (max-width: 900px) {
+    .mainArea {
+      flex-direction:column;
+      align-items:center;
+    }
     #coordPanel {
       width:90%;
-    }
-    .description {
-      width:90% !important;
     }
   }
 </style>
 </head>
 <body>
 
-<h2>戦術対抗戦S10　配置確認 1.6.1</h2>
+<h2>戦術対抗戦S10　配置確認 1.7.1</h2>
 
 <button id="toggleColor">現在：赤 → 青に切替</button>
 <button id="toggleLine">線の表示 ON/OFF</button>
@@ -100,7 +96,7 @@
 
   <!-- 座標入力パネル（右側） -->
   <div id="coordPanel">
-    <h3>座標一覧 / 編集</h3>
+    <h3>座標一覧 / 編集（中央原点）</h3>
     <div id="coordList"></div>
     <button id="applyCoords">座標を反映</button>
   </div>
@@ -129,8 +125,9 @@
   </ul>
 
   <p><strong>● 座標入力について</strong></p>
-  <p>座標欄では、各点の座標を直接編集できます。未配置の点は空欄です。</p>
+  <p>座標欄では、キャンバス中央を原点（0,0）として座標を入力できます。</p>
 </div>
+
 <script>
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
@@ -301,16 +298,23 @@ function updateCounter() {
   redCount.className = redPoints.length === 4 ? "max" : "";
   blueCount.className = bluePoints.length === 4 ? "max" : "";
 }
-
-// ===== 座標パネル更新 =====
+// ===== 座標パネル更新（内部 → 中央原点） =====
 function updateCoordPanel() {
   const panel = document.getElementById("coordList");
   panel.innerHTML = "";
 
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+
   function addRow(color, index, point) {
     const id = `${color}${index}`;
-    const x = point ? point.x : "";
-    const y = point ? point.y : "";
+    let x = "";
+    let y = "";
+
+    if (point) {
+      x = Math.round(point.x - cx);
+      y = Math.round(point.y - cy);
+    }
 
     panel.innerHTML += `
       <div>
@@ -325,14 +329,23 @@ function updateCoordPanel() {
   for (let i = 1; i <= 4; i++) addRow("blue", i, bluePoints[i-1]);
 }
 
-// 座標反映
+// ===== 座標反映（中央原点 → 内部） =====
 document.getElementById("applyCoords").onclick = () => {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+
   function apply(color) {
     const newList = [];
     for (let i = 1; i <= 4; i++) {
       const x = document.getElementById(`${color}${i}_x`).value;
       const y = document.getElementById(`${color}${i}_y`).value;
-      if (x !== "" && y !== "") newList.push({ x:Number(x), y:Number(y) });
+
+      if (x !== "" && y !== "") {
+        newList.push({
+          x: Number(x) + cx,
+          y: Number(y) + cy
+        });
+      }
     }
     return newList;
   }
@@ -516,4 +529,3 @@ bg.onload = () => {
 
 </body>
 </html>
-
