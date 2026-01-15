@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>戦術対抗戦S10　配置確認 1.4.0</title>
+<title>戦術対抗戦S10　配置確認 1.5.0</title>
 <style>
   body { text-align:center; font-family:sans-serif; margin:0; padding:0; }
 
@@ -40,7 +40,6 @@
     line-height:1.5;
   }
 
-  /* スマホでは縦並びにする */
   @media (max-width: 900px) {
     .container {
       flex-direction:column;
@@ -50,11 +49,26 @@
       width:90%;
     }
   }
+
+  #coordPanel {
+    margin-top:20px;
+    text-align:left;
+    display:inline-block;
+    padding:10px;
+    border:1px solid #aaa;
+    border-radius:8px;
+    background:#fafafa;
+  }
+
+  #coordPanel input {
+    width:70px;
+    margin:3px;
+  }
 </style>
 </head>
 <body>
 
-<h2>戦術対抗戦S10　配置確認 1.4.0</h2>
+<h2>戦術対抗戦S10　配置確認 1.5.0</h2>
 
 <button id="toggleColor">現在：赤 → 青に切替</button>
 <button id="toggleLine">線の表示 ON/OFF</button>
@@ -86,6 +100,13 @@
     </ul>
   </div>
 
+</div>
+
+<!-- 座標表示・編集パネル -->
+<div id="coordPanel">
+  <h3>座標一覧 / 編集</h3>
+  <div id="coordList"></div>
+  <button id="applyCoords">座標を反映</button>
 </div>
 
 <script>
@@ -139,6 +160,7 @@ canvas.addEventListener("mousemove", (e) => {
   dragTarget.x = x;
   dragTarget.y = y;
   draw();
+  updateCoordPanel();
 });
 
 canvas.addEventListener("mouseup", () => {
@@ -162,7 +184,6 @@ canvas.addEventListener("contextmenu", (e) => {
 canvas.addEventListener("touchstart", (e) => {
   const {x, y} = getPos(e.touches[0]);
 
-  // ダブルタップ判定
   const now = Date.now();
   if (now - lastTapTime < 300) {
     setSelectedPoint(x, y);
@@ -185,6 +206,7 @@ canvas.addEventListener("touchmove", (e) => {
   dragTarget.x = x;
   dragTarget.y = y;
   draw();
+  updateCoordPanel();
 });
 
 canvas.addEventListener("touchend", (e) => {
@@ -214,6 +236,7 @@ function addPoint(x, y) {
   if (mode === "blue" && bluePoints.length < 4) bluePoints.push({x,y});
   updateCounter();
   draw();
+  updateCoordPanel();
 }
 
 function deletePoint(x, y) {
@@ -221,11 +244,12 @@ function deletePoint(x, y) {
   bluePoints = bluePoints.filter(p => dist(p, {x,y}) >= 12);
   updateCounter();
   draw();
+  updateCoordPanel();
 }
 
 function setSelectedPoint(x, y) {
-  for (const p of redPoints) if (dist(p, {x,y}) < 12) { selectedPoint = {...p, color:"red"}; draw(); return; }
-  for (const p of bluePoints) if (dist(p, {x,y}) < 12) { selectedPoint = {...p, color:"blue"}; draw(); return; }
+  for (const p of redPoints) if (dist(p, {x,y}) < 12) { selectedPoint = {...p, color:"red"}; draw(); updateCoordPanel(); return; }
+  for (const p of bluePoints) if (dist(p, {x,y}) < 12) { selectedPoint = {...p, color:"blue"}; draw(); updateCoordPanel(); return; }
 }
 
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
@@ -255,41 +279,78 @@ function updateCounter() {
   blueCount.className = bluePoints.length === 4 ? "max" : "";
 }
 
-function drawCross(x, y, size, color) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(x-size, y-size);
-  ctx.lineTo(x+size, y+size);
-  ctx.moveTo(x+size, y-size);
-  ctx.lineTo(x-size, y+size);
-  ctx.stroke();
+// ===== 座標パネル更新 =====
+function updateCoordPanel() {
+  const panel = document.getElementById("coordList");
+  panel.innerHTML = "";
+
+  function addRow(color, index, point) {
+    const id = `${color}${index}`;
+    const x = point ? point.x : "";
+    const y = point ? point.y : "";
+
+    panel.innerHTML += `
+      <div>
+        ${color === "red" ? "赤" : "青"}${index}：
+        X <input type="number" id="${id}_x" value="${x}">
+        Y <input type="number" id="${id}_y" value="${y}">
+      </div>
+    `;
+  }
+
+  for (let i = 1; i <= 4; i++) addRow("red", i, redPoints[i-1]);
+  for (let i = 1; i <= 4; i++) addRow("blue", i, bluePoints[i-1]);
 }
 
-function drawCircle(x, y, color) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(x, y, 16, 0, Math.PI*2);
-  ctx.stroke();
-}
+// 座標反映
+document.getElementById("applyCoords").onclick = () => {
+  function apply(color) {
+    const newList = [];
+    for (let i = 1; i <= 4; i++) {
+      const x = document.getElementById(`${color}${i}_x`).value;
+      const y = document.getElementById(`${color}${i}_y`).value;
+      if (x !== "" && y !== "") newList.push({ x:Number(x), y:Number(y) });
+    }
+    return newList;
+  }
+
+  redPoints = apply("red");
+  bluePoints = apply("blue");
+
+  updateCounter();
+  draw();
+  updateCoordPanel();
+};
 
 // ===== 描画 =====
 function draw() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
 
-  for (const p of redPoints) {
+  // 赤点
+  for (let i = 0; i < redPoints.length; i++) {
+    const p = redPoints[i];
     ctx.fillStyle = "red";
     ctx.beginPath();
     ctx.arc(p.x, p.y, 10, 0, Math.PI*2);
     ctx.fill();
+
+    ctx.fillStyle = "white";
+    ctx.font = "14px sans-serif";
+    ctx.fillText(i+1, p.x-4, p.y+5);
   }
-  for (const p of bluePoints) {
+
+  // 青点
+  for (let i = 0; i < bluePoints.length; i++) {
+    const p = bluePoints[i];
     ctx.fillStyle = "blue";
     ctx.beginPath();
     ctx.arc(p.x, p.y, 10, 0, Math.PI*2);
     ctx.fill();
+
+    ctx.fillStyle = "white";
+    ctx.font = "14px sans-serif";
+    ctx.fillText(i+1, p.x-4, p.y+5);
   }
 
   const cRed = centroid(redPoints);
@@ -324,7 +385,7 @@ function draw() {
     }
   }
 
-  // ③ STバフ（基準点→同色、自分自身を除外）
+  // ③ STバフ（基準点→同色）
   if (modeType === 3 && selectedPoint) {
     drawCross(selectedPoint.x, selectedPoint.y, 12, "yellow");
 
@@ -364,6 +425,25 @@ function draw() {
   }
 }
 
+function drawCross(x, y, size, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x-size, y-size);
+  ctx.lineTo(x+size, y+size);
+  ctx.moveTo(x+size, y-size);
+  ctx.lineTo(x-size, y+size);
+  ctx.stroke();
+}
+
+function drawCircle(x, y, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(x, y, 16, 0, Math.PI*2);
+  ctx.stroke();
+}
+
 // ===== ボタン処理 =====
 document.getElementById("modeToggle").onclick = () => {
   modeType = (modeType % 3) + 1;
@@ -394,6 +474,7 @@ document.getElementById("reset").onclick = () => {
   selectedPoint = null;
   updateCounter();
   draw();
+  updateCoordPanel();
 };
 
 // ===== 画像保存 =====
@@ -404,7 +485,10 @@ document.getElementById("saveImage").onclick = () => {
   link.click();
 };
 
-bg.onload = () => draw();
+bg.onload = () => {
+  draw();
+  updateCoordPanel();
+};
 </script>
 
 </body>
