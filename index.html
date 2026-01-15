@@ -2,11 +2,10 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>戦術対抗戦S10　配置確認 1.7.1</title>
+<title>戦術対抗戦S10　配置確認 1.8.0</title>
 <style>
   body { text-align:center; font-family:sans-serif; margin:0; padding:0; }
 
-  /* PCではキャンバスと座標欄を横並び */
   .mainArea {
     display:flex;
     justify-content:center;
@@ -56,7 +55,6 @@
     line-height:1.6;
   }
 
-  /* スマホでは縦並び */
   @media (max-width: 900px) {
     .mainArea {
       flex-direction:column;
@@ -70,7 +68,7 @@
 </head>
 <body>
 
-<h2>戦術対抗戦S10　配置確認 1.7.1</h2>
+<h2>戦術対抗戦S10　配置確認 1.8.0</h2>
 
 <button id="toggleColor">現在：赤 → 青に切替</button>
 <button id="toggleLine">線の表示 ON/OFF</button>
@@ -81,34 +79,32 @@
 
 <button id="modeToggle">①SP攻撃の対象</button>
 
+<!-- ★ 機能3専用プルダウン（最初は非表示） -->
+<select id="skillSelect" style="display:none; margin-left:10px;">
+  <option value="buffer">バッファー</option>
+  <option value="hanako">ハナコ（水着）</option>
+</select>
+
 <div id="counter">
   赤: <span id="redCount">0</span> / 4　
   青: <span id="blueCount">0</span> / 4
 </div>
 
-<!-- PCでは横並び、スマホでは縦並び -->
 <div class="mainArea">
-
-  <!-- キャンバス（左側） -->
   <div style="flex-shrink:0;">
     <canvas id="board"></canvas>
   </div>
 
-  <!-- 座標入力パネル（右側） -->
   <div id="coordPanel">
     <h3>座標一覧 / 編集（中央原点）</h3>
     <div id="coordList"></div>
     <button id="applyCoords">座標を反映</button>
   </div>
-
 </div>
 
-<!-- 説明テキスト（最下段） -->
 <div class="description">
   <h3>ツールの使い方</h3>
-
   <p>このツールは、戦術対抗戦の部隊配置を視覚的に確認するためのものです。</p>
-
   <p><strong>● 点の操作</strong></p>
   <ul>
     <li>左クリック / タップ：点を追加</li>
@@ -116,16 +112,12 @@
     <li>ドラッグ / スワイプ：点を移動</li>
     <li>ダブルクリック / ダブルタップ：STバフの基準点を選択</li>
   </ul>
-
   <p><strong>● モード説明</strong></p>
   <ul>
     <li>① SP攻撃：重心 → 異色の最短点</li>
     <li>② SPバフ：重心 → 同色の最短点</li>
-    <li>③ STバフ：選択点 → 同色の最短点（自分を除外）</li>
+    <li>③ STバフ：選択点 → 同色の最短点（自分を除外）＋追加機能</li>
   </ul>
-
-  <p><strong>● 座標入力について</strong></p>
-  <p>座標欄では、キャンバス中央を原点（0,0）として座標を入力できます。</p>
 </div>
 
 <script>
@@ -150,7 +142,6 @@ let selectedPoint = null;
 let lastTapTime = 0;
 let longPressTimer = null;
 
-// ===== Canvas 自動リサイズ =====
 function resizeCanvas() {
   const w = Math.min(window.innerWidth * 0.9, 800);
   canvas.width = w;
@@ -161,16 +152,10 @@ function resizeCanvas() {
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
-// ===== PC操作 =====
 canvas.addEventListener("mousedown", (e) => {
   const {x, y} = getPos(e);
-
   dragTarget = findPoint(x, y);
-  if (dragTarget) {
-    dragging = true;
-    return;
-  }
-
+  if (dragTarget) { dragging = true; return; }
   addPoint(x, y);
 });
 
@@ -193,17 +178,14 @@ canvas.addEventListener("dblclick", (e) => {
   setSelectedPoint(x, y);
 });
 
-// 右クリック削除
 canvas.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   const {x, y} = getPos(e);
   deletePoint(x, y);
 });
 
-// ===== スマホ操作 =====
 canvas.addEventListener("touchstart", (e) => {
   const {x, y} = getPos(e.touches[0]);
-
   const now = Date.now();
   if (now - lastTapTime < 300) {
     setSelectedPoint(x, y);
@@ -213,11 +195,8 @@ canvas.addEventListener("touchstart", (e) => {
   lastTapTime = now;
 
   dragTarget = findPoint(x, y);
-  if (dragTarget) {
-    dragging = true;
-  } else {
-    longPressTimer = setTimeout(() => deletePoint(x, y), 500);
-  }
+  if (dragTarget) dragging = true;
+  else longPressTimer = setTimeout(() => deletePoint(x, y), 500);
 });
 
 canvas.addEventListener("touchmove", (e) => {
@@ -239,7 +218,6 @@ canvas.addEventListener("touchend", (e) => {
   dragTarget = null;
 });
 
-// ===== 共通処理 =====
 function getPos(e) {
   const rect = canvas.getBoundingClientRect();
   return { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -421,59 +399,52 @@ function draw() {
     }
   }
 
-  // ③ STバフ（基準点→同色）
+  // ③ STバフ（機能3アップデート）
   if (modeType === 3 && selectedPoint) {
-    drawCross(selectedPoint.x, selectedPoint.y, 12, "yellow");
+    const p = selectedPoint;
 
-    if (selectedPoint.color === "red") {
-      const t = nearest(selectedPoint, redPoints, true);
-      if (t) drawCircle(t.x, t.y, "rgba(255,150,150,0.5)");
+    // プルダウンの選択状態
+    const skill = document.getElementById("skillSelect").value;
+
+    // 同色・異色リスト
+    const sameList = p.color === "red" ? redPoints : bluePoints;
+    const enemyList = p.color === "red" ? bluePoints : redPoints;
+
+    // ★ バッファー：同色の最寄り点を円で囲む（扇形なし）
+    if (skill === "buffer") {
+      const t = nearest(p, sameList, true);
+      if (t) {
+        drawCircle(t.x, t.y, "rgba(255,255,0,0.6)");
+      }
     }
 
-    if (selectedPoint.color === "blue") {
-      const t = nearest(selectedPoint, bluePoints, true);
-      if (t) drawCircle(t.x, t.y, "rgba(100,150,255,0.5)");
+    // ★ ハナコ（水着）：異色の最寄り点方向に扇形（円なし）
+    if (skill === "hanako") {
+      const t = nearest(p, enemyList);
+      if (t) {
+        const fillColor = p.color === "red"
+          ? "rgba(255,0,0,0.3)"
+          : "rgba(0,0,255,0.3)";
+
+        const radius = 180;
+        const angle = Math.PI / 3;
+        const half = angle / 2;
+
+        let baseAngle = Math.atan2(t.y - p.y, t.x - p.x);
+
+        const startAngle = baseAngle - half;
+        const endAngle = baseAngle + half;
+
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.arc(p.x, p.y, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+      }
     }
   }
-  // ===== 機能4：扇形の描画（異色の最寄り点方向） =====
-if (modeType === 3 && selectedPoint) {
-  const p = selectedPoint;
 
-  // 扇形の色（薄い赤 or 薄い青）
-  const fillColor = p.color === "red"
-    ? "rgba(255,0,0,0.3)"
-    : "rgba(0,0,255,0.3)";
-
-  // 扇形の設定
-  const radius = 180;
-  const angle = Math.PI / 3; // 60°
-  const half = angle / 2;
-
-  // 異色の点リスト
-  const enemyList = p.color === "red" ? bluePoints : redPoints;
-
-  // 異色の最寄り点
-  const t = nearest(p, enemyList);
-
-  // 向き（基準点 → 異色最寄り点）
-  let baseAngle = 0;
-  if (t) {
-    baseAngle = Math.atan2(t.y - p.y, t.x - p.x);
-  }
-
-  const startAngle = baseAngle - half;
-  const endAngle = baseAngle + half;
-
-  // 扇形描画
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
-  ctx.arc(p.x, p.y, radius, startAngle, endAngle);
-  ctx.closePath();
-
-  ctx.fillStyle = fillColor;
-  ctx.fill();
-  }
-  
   // 線表示（SP攻撃のみ）
   if (showLines && modeType === 1) {
     if (cRed) {
@@ -524,9 +495,20 @@ document.getElementById("modeToggle").onclick = () => {
   selectedPoint = null;
 
   const btn = document.getElementById("modeToggle");
-  if (modeType === 1) btn.textContent = "①SP攻撃の対象";
-  if (modeType === 2) btn.textContent = "②SPバフの対象";
-  if (modeType === 3) btn.textContent = "③STバフの対象";
+  const skill = document.getElementById("skillSelect");
+
+  if (modeType === 1) {
+    btn.textContent = "①SP攻撃の対象";
+    skill.style.display = "none";
+  }
+  if (modeType === 2) {
+    btn.textContent = "②SPバフの対象";
+    skill.style.display = "none";
+  }
+  if (modeType === 3) {
+    btn.textContent = "③STバフの対象";
+    skill.style.display = "inline-block"; // ★ プルダウン表示
+  }
 
   draw();
 };
@@ -551,7 +533,6 @@ document.getElementById("reset").onclick = () => {
   updateCoordPanel();
 };
 
-// ===== 画像保存 =====
 document.getElementById("saveImage").onclick = () => {
   const link = document.createElement("a");
   link.download = "tactics.png";
