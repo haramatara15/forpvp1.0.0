@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <title>戦術対抗戦S10　配置確認 1.6.1</title>
 <style>
+.mainArea {
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  gap:20px;
+  margin-top:20px;
+}
+
+@media (max-width: 900px) {
+  .mainArea {
+    flex-direction:column;
+    align-items:center;
+  }
+}
   body { text-align:center; font-family:sans-serif; margin:0; padding:0; }
 
   canvas {
@@ -76,12 +90,24 @@
   青: <span id="blueCount">0</span> / 4
 </div>
 
-<!-- キャンバス（最上段） -->
-<div style="margin-top:20px;">
-  <canvas id="board"></canvas>
+<!-- PCでは横並び、スマホでは縦並び -->
+<div class="mainArea">
+
+  <!-- キャンバス（左側） -->
+  <div style="flex-shrink:0;">
+    <canvas id="board"></canvas>
+  </div>
+
+  <!-- 座標入力パネル（右側） -->
+  <div id="coordPanel">
+    <h3>座標一覧 / 編集</h3>
+    <div id="coordList"></div>
+    <button id="applyCoords">座標を反映</button>
+  </div>
+
 </div>
 
-<!-- 説明テキスト（キャンバスの下） -->
+<!-- 説明テキスト（最下段） -->
 <div class="description">
   <h3>ツールの使い方</h3>
 
@@ -104,18 +130,7 @@
 
   <p><strong>● 座標入力について</strong></p>
   <p>座標欄では、各点の座標を直接編集できます。未配置の点は空欄です。</p>
-
-  <p><strong>● 保存機能（今後追加予定）</strong></p>
-  <p>座標データを保存・読み込みできる機能を追加予定です。</p>
 </div>
-
-<!-- 座標入力パネル（最下段） -->
-<div id="coordPanel">
-  <h3>座標一覧 / 編集</h3>
-  <div id="coordList"></div>
-  <button id="applyCoords">座標を反映</button>
-</div>
-
 <script>
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
@@ -501,3 +516,4 @@ bg.onload = () => {
 
 </body>
 </html>
+
