@@ -435,7 +435,45 @@ function draw() {
       if (t) drawCircle(t.x, t.y, "rgba(100,150,255,0.5)");
     }
   }
+  // ===== 機能4：扇形の描画（異色の最寄り点方向） =====
+if (modeType === 3 && selectedPoint) {
+  const p = selectedPoint;
 
+  // 扇形の色（薄い赤 or 薄い青）
+  const fillColor = p.color === "red"
+    ? "rgba(255,0,0,0.3)"
+    : "rgba(0,0,255,0.3)";
+
+  // 扇形の設定
+  const radius = 180;
+  const angle = Math.PI / 3; // 60°
+  const half = angle / 2;
+
+  // 異色の点リスト
+  const enemyList = p.color === "red" ? bluePoints : redPoints;
+
+  // 異色の最寄り点
+  const t = nearest(p, enemyList);
+
+  // 向き（基準点 → 異色最寄り点）
+  let baseAngle = 0;
+  if (t) {
+    baseAngle = Math.atan2(t.y - p.y, t.x - p.x);
+  }
+
+  const startAngle = baseAngle - half;
+  const endAngle = baseAngle + half;
+
+  // 扇形描画
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  ctx.arc(p.x, p.y, radius, startAngle, endAngle);
+  ctx.closePath();
+
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+  }
+  
   // 線表示（SP攻撃のみ）
   if (showLines && modeType === 1) {
     if (cRed) {
